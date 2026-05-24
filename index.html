@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Debit Note Generator — TechVibe</title>
+
+<!-- jsPDF + AutoTable from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+
+<style>
+/* ── Reset & Base ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --sky:    #0ea5e9;
+  --sky-d:  #0369a1;
+  --sky-l:  #e0f2fe;
+  --slate8: #1e293b;
+  --slate6: #475569;
+  --slate4: #94a3b8;
+  --slate2: #e2e8f0;
+  --slate1: #f8fafc;
+  --white:  #ffffff;
+  --red:    #ef4444;
+  --green:  #10b981;
+  --r:      10px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,.12);
+}
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--slate1);
+  color: var(--slate8);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+h1,h2,h3 { font-family: 'DM Sans', sans-serif; }
+button { cursor: pointer; font-family: inherit; font-size: 13px; }
+input, textarea, select { font-family: inherit; font-size: 13px; }
+
+/* ── Scrollbar ────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--slate1); }
+::-webkit-scrollbar-thumb { background: var(--slate2); border-radius: 4px; }
+
+/* ── Top Bar ─────────────────────────────────────── */
+#topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--white);
+  border-bottom: 1px solid var(--slate2);
+  box-shadow: var(--shadow);
+  height: 54px;
+  display: flex; align-items: center;
+  padding: 0 20px;
+  gap: 12px;
+}
+#topbar .brand {
+  display: flex; align-items: center; gap: 10px; flex: 1;
+}
+#topbar .brand-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--sky);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 16px;
+}
+#topbar .brand-name {
+  font-family: 'Syne', sans-serif; font-weight: 700;
+  font-size: 16px; color: var(--slate8);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 8px; border: none;
+  font-weight: 500; transition: all .15s;
+}
+.btn-ghost {
+  background: transparent; color: var(--slate6);
+  border: 1px solid var(--slate2);
+}
+.btn-ghost:hover { background: var(--slate1); color: var(--slate8); border-color: var(--slate4); }
+.btn-dark { background: var(--slate8); color: white; }
+.btn-dark:hover { background: #334155; }
+.btn-sky { background: var(--sky); color: white; }
+.btn-sky:hover { background: var(--sky-d); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Layout ──────────────────────────────────────── */
+#layout {
+  max-width: 1100px; margin: 0 auto;
+  padding: 24px 16px;
+  display: flex; gap: 20px;
+}
+
+/* ── Sidebar ─────────────────────────────────────── */
+#sidebar {
+  width: 200px; flex-shrink: 0;
+}
+#sidebar-nav {
+  background: white; border-radius: var(--r);
+  border: 1px solid var(--slate2);
+  overflow: hidden;
+  position: sticky; top: 70px;
+}
+.tab-btn {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px; border: none; border-left: 2px solid transparent;
+  background: transparent; color: var(--slate6); text-align: left;
+  font-size: 13px; transition: all .13s;
+}
+.tab-btn:hover { background: var(--slate1); color: var(--slate8); }
+.tab-btn.active {
+  border-left-color: var(--sky); background: var(--sky-l);
+  color: var(--sky-d); font-weight: 600;
+}
+.tab-btn .tab-icon { font-size: 15px; opacity: .8; }
+
+/* ── Main Panel ──────────────────────────────────── */
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Card / Section ──────────────────────────────── */
+.card {
+  background: white; border-radius: var(--r);
+  border: 1px solid var(--slate2);
+  overflow: hidden;
+}
+.card-head {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 18px; border-bottom: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.card-head-icon { color: var(--sky); font-size: 16px; }
+.card-head h2 { font-size: 13px; font-weight: 600; color: var(--slate8); font-family: 'DM Sans', sans-serif; }
+.card-body { padding: 18px; }
+
+/* ── Form Fields ─────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--slate6);
+}
+.field label .hint { font-weight: 400; text-transform: none; color: var(--slate4); margin-left: 4px; }
+.inp {
+  width: 100%; padding: 8px 11px;
+  border: 1px solid var(--slate2); border-radius: 7px;
+  background: white; color: var(--slate8);
+  transition: border-color .13s, box-shadow .13s;
+}
+.inp:hover { border-color: var(--slate4); }
+.inp:focus { outline: none; border-color: var(--sky); box-shadow: 0 0 0 3px rgba(14,165,233,.12); }
+textarea.inp { resize: vertical; line-height: 1.6; }
+.mt-4 { margin-top: 16px; }
+
+/* ── Items Table ─────────────────────────────────── */
+.inv-table {
+  width: 100%; border-collapse: collapse; table-layout: auto;
+  font-size: 13px;
+}
+.inv-table th {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--slate6);
+  padding: 6px 10px 10px; border-bottom: 2px solid var(--slate2);
+  white-space: nowrap;
+}
+.inv-table th.r { text-align: right; }
+.inv-table th.c { text-align: center; }
+.inv-table td {
+  padding: 7px 10px; vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+}
+.inv-table tbody tr:last-child td { border-bottom: none; }
+.inv-table td.c { text-align: center; }
+.inv-table td.r { text-align: right; }
+
+/* Fixed column widths */
+.col-qty   { width: 70px; }
+.col-price { width: 118px; }
+.col-amt   { width: 128px; }
+.col-cur   { width: 82px; }
+.col-note  { width: 120px; }
+.col-del   { width: 36px; }
+
+.item-desc-wrap { display: flex; flex-direction: column; gap: 4px; }
+
+.amount-display {
+  display: block; text-align: right;
+  font-weight: 500; color: var(--slate8);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.remove-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: none;
+  background: transparent; color: var(--slate4);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; transition: all .13s; margin: 0 auto;
+}
+.remove-btn:hover { background: #fef2f2; color: var(--red); }
+.remove-btn:disabled { opacity: .25; cursor: not-allowed; }
+
+.add-row-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; color: var(--sky);
+  font-weight: 600; font-size: 13px; padding: 10px 10px 6px;
+}
+.add-row-btn:hover { color: var(--sky-d); }
+
+/* tfoot totals — sit inside the table, value always in Amount col */
+#inv-tfoot tr td {
+  padding: 7px 10px;
+  border-top: 1px solid var(--slate2);
+  font-size: 13px;
+}
+#inv-tfoot tr:first-child td { border-top: 2px solid var(--slate2); }
+#inv-tfoot .tfoot-lbl {
+  text-align: right; color: var(--slate6);
+  padding-right: 12px;
+}
+#inv-tfoot .tfoot-val {
+  text-align: right; font-weight: 500; color: var(--slate8);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+#inv-tfoot .tr-total td { border-top: 2px solid var(--slate8) !important; }
+#inv-tfoot .tr-total .tfoot-lbl { font-weight: 700; color: var(--slate8); }
+#inv-tfoot .tr-total .tfoot-val {
+  font-size: 17px; font-weight: 700; color: var(--sky);
+}
+.vat-cell-inner {
+  display: flex; align-items: center; gap: 6px; justify-content: flex-end;
+  color: var(--slate6);
+}
+.vat-cell-inner input {
+  width: 52px; padding: 3px 7px; text-align: center;
+  border: 1px solid var(--slate2); border-radius: 5px; font-size: 13px;
+  font-family: inherit;
+}
+.vat-cell-inner input:focus { outline: none; border-color: var(--sky); }
+
+/* ── Column Toggle ───────────────────────────────── */
+.col-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--slate6); cursor: pointer;
+  padding: 4px 9px; border-radius: 20px;
+  border: 1px solid var(--slate2); background: var(--slate1);
+  user-select: none; transition: all .13s;
+}
+.col-toggle:hover { border-color: var(--sky); color: var(--sky-d); }
+.col-toggle input[type=checkbox] { accent-color: var(--sky); width: 13px; height: 13px; }
+.img-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.img-upload-area {
+  border: 2px dashed var(--slate2); border-radius: 10px;
+  cursor: pointer; transition: all .15s;
+  overflow: hidden; position: relative;
+}
+.img-upload-area:hover { border-color: var(--sky); background: var(--sky-l); }
+.img-placeholder {
+  padding: 28px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: var(--slate4);
+}
+.img-placeholder .upload-icon { font-size: 28px; }
+.img-placeholder p { font-size: 12px; text-align: center; }
+.img-preview { position: relative; }
+.img-preview img { width: 100%; max-height: 130px; object-fit: contain; display: block; }
+.img-actions {
+  position: absolute; top: 8px; right: 8px;
+  display: flex; gap: 5px;
+}
+.img-action-btn {
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--slate2);
+  background: white; font-size: 11px; font-weight: 500;
+  box-shadow: var(--shadow); transition: all .13s;
+}
+.img-action-btn:hover { background: var(--slate1); }
+.img-action-btn.remove:hover { background: #fef2f2; color: var(--red); border-color: #fecaca; }
+.img-label { font-size: 13px; font-weight: 600; color: var(--slate7); }
+.img-hint { font-size: 11px; color: var(--slate4); margin-top: 2px; margin-bottom: 10px; }
+
+/* ── Action Bar (bottom) ─────────────────────────── */
+.action-bar {
+  display: flex; gap: 10px; align-items: center; padding-top: 4px;
+}
+
+/* ── PDF Preview ─────────────────────────────────── */
+#pdf-preview-wrap {
+  margin-top: 8px;
+  background: white; border-radius: var(--r);
+  border: 1px solid var(--slate2);
+  overflow: hidden; box-shadow: var(--shadow-lg);
+}
+#pdf-preview-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--slate1);
+  border-bottom: 1px solid var(--slate2);
+}
+#pdf-preview-head h3 { font-size: 13px; font-weight: 600; }
+#pdf-preview-head .head-actions { display: flex; gap: 8px; }
+#pdf-frame {
+  width: 100%; height: 820px; border: none;
+  display: block;
+}
+
+/* ── Toast ───────────────────────────────────────── */
+#toast {
+  position: fixed; top: 64px; right: 16px; z-index: 999;
+  padding: 10px 18px; border-radius: 9px; font-size: 13px; font-weight: 500;
+  color: white; box-shadow: var(--shadow-lg);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s;
+}
+#toast.show { opacity: 1; }
+#toast.success { background: var(--green); }
+#toast.error   { background: var(--red); }
+
+/* ── Spinner ─────────────────────────────────────── */
+.spin {
+  display: inline-block; width: 13px; height: 13px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: white; border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Tab panels hidden by default ───────────────── */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── Responsive ──────────────────────────────────── */
+@media (max-width: 700px) {
+  #layout { flex-direction: column; }
+  #sidebar { width: 100%; }
+  #sidebar-nav { display: flex; overflow-x: auto; position: static; }
+  .tab-btn { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; padding: 10px 12px; }
+  .tab-btn.active { border-left-color: transparent; border-bottom-color: var(--sky); }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .items-head, .item-row { font-size: 12px; }
+  .img-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Toast ── -->
+<div id="toast"></div>
+
+<!-- ── Top Bar ── -->
+<div id="topbar">
+  <div class="brand">
+    <div class="brand-icon">📄</div>
+    <span class="brand-name">Debit Note Generator</span>
+  </div>
+  <button class="btn btn-ghost" onclick="resetForm()">↺ Reset</button>
+  <button class="btn btn-dark" id="btn-preview-top" onclick="generatePDF(false)">👁 Preview PDF</button>
+  <button class="btn btn-sky"  id="btn-download-top" onclick="generatePDF(true)">⬇ Download PDF</button>
+</div>
+
+<!-- ── Layout ── -->
+<div id="layout">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <nav id="sidebar-nav">
+      <button class="tab-btn active" data-tab="debit"   onclick="switchTab('debit')">  <span class="tab-icon">📋</span> Debit Note </button>
+      <button class="tab-btn"        data-tab="company" onclick="switchTab('company')"><span class="tab-icon">🏢</span> Your Company</button>
+      <button class="tab-btn"        data-tab="client"  onclick="switchTab('client')"> <span class="tab-icon">👤</span> Client Info</button>
+      <button class="tab-btn"        data-tab="items"   onclick="switchTab('items')">  <span class="tab-icon">📦</span> Invoice Items</button>
+      <button class="tab-btn"        data-tab="bank"    onclick="switchTab('bank')">   <span class="tab-icon">🏦</span> Bank & Payment</button>
+      <button class="tab-btn"        data-tab="notes"   onclick="switchTab('notes')">  <span class="tab-icon">📝</span> Payment Terms</button>
+      <button class="tab-btn"        data-tab="images"  onclick="switchTab('images')"> <span class="tab-icon">🖼</span> Header/Footer</button>
+    </nav>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- ── Tab: Debit Note ── -->
+    <div id="tab-debit" class="tab-panel active">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">📋</span><h2>Debit Note Details</h2></div>
+        <div class="card-body">
+          <div class="grid-2">
+            <div class="field">
+              <label>Reference Number <span class="hint">Tự tạo theo ngày hôm nay</span></label>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input class="inp" id="referenceNumber" style="flex:1;background:#f8fafc;font-weight:600;" readonly
+                  oninput="state.paymentContentManual=false;save()" />
+                <div style="display:flex;flex-direction:column;gap:3px;align-items:center;">
+                  <span style="font-size:10px;color:var(--slate4);white-space:nowrap;">Số TT</span>
+                  <input type="number" id="refSeq" min="1" max="999" value="1"
+                    style="width:58px;padding:7px 6px;border:1px solid var(--slate2);border-radius:7px;text-align:center;font-size:13px;font-weight:600;"
+                    oninput="updateRefNumber()" />
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Due Date</label>
+              <input class="inp" type="date" id="dueDate" oninput="save();renderFixedBulletsPreview();" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Company ── -->
+    <div id="tab-company" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">🏢</span><h2>Your Company Information</h2></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div class="field">
+            <label>Company Name</label>
+            <input class="inp" id="companyName" oninput="save()" />
+          </div>
+          <div class="field">
+            <label>Company Address</label>
+            <textarea class="inp" id="companyAddress" rows="2" oninput="save()"></textarea>
+          </div>
+          <div class="field">
+            <label>Tax Code</label>
+            <input class="inp" id="companyTaxCode" oninput="save()" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Client ── -->
+    <div id="tab-client" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">👤</span><h2>Client Information</h2></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div class="field">
+            <label>Client Company Name</label>
+            <input class="inp" id="clientName" placeholder="e.g. KPIT Technologies" oninput="save()" />
+          </div>
+          <div class="field">
+            <label>Client Address</label>
+            <textarea class="inp" id="clientAddress" rows="2" oninput="save()"></textarea>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>Tax Code</label>
+              <input class="inp" id="clientTaxCode" oninput="save()" />
+            </div>
+            <div class="field">
+              <label>Contact Person</label>
+              <input class="inp" id="clientContact" oninput="save()" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Items ── -->
+    <div id="tab-items" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">📦</span><h2>Invoice Items</h2></div>
+        <div class="card-body" style="padding:16px;">
+          <!-- Column toggles + Currency selector -->
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div id="col-manager" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--slate6);">Columns:</span>
+              <label class="col-toggle"><input type="checkbox" id="col-qty"    checked onchange="renderItems()"> Quantity</label>
+              <label class="col-toggle"><input type="checkbox" id="col-price"  checked onchange="renderItems()"> Unit Price</label>
+              <label class="col-toggle"><input type="checkbox" id="col-amount" checked onchange="renderItems()"> Amount</label>
+              <label class="col-toggle"><input type="checkbox" id="col-note"          onchange="renderItems()"> Note</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--slate6);">Currency:</span>
+              <div style="display:flex;border:1px solid var(--slate2);border-radius:8px;overflow:hidden;">
+                <button id="cur-btn-usd" onclick="setCurrency('USD')"
+                  style="padding:6px 14px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:var(--sky);color:white;transition:all .13s;">USD</button>
+                <button id="cur-btn-vnd" onclick="setCurrency('VND')"
+                  style="padding:6px 14px;font-size:13px;font-weight:600;border:none;cursor:pointer;background:white;color:var(--slate6);transition:all .13s;">VND</button>
+              </div>
+            </div>
+          </div>
+          <!-- Table (overflow-x so it never breaks the card) -->
+          <div style="overflow-x:auto; border:1px solid var(--slate2); border-radius:8px;">
+            <table class="inv-table" id="inv-table">
+              <colgroup id="inv-colgroup"></colgroup>
+              <thead><tr id="inv-thead"></tr></thead>
+              <tbody id="inv-tbody"></tbody>
+              <tfoot id="inv-tfoot"></tfoot>
+            </table>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;padding-top:10px;">
+
+  <button class="add-row-btn" onclick="addItem('normal')">
+    ＋ Add Item Row
+  </button>
+
+  <button class="add-row-btn" onclick="addItem('text')">
+    ＋ Add Text Row
+  </button>
+
+</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Bank ── -->
+    <div id="tab-bank" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">🏦</span><h2>Bank & Payment Information</h2></div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div class="field">
+            <label>Account Name</label>
+            <input class="inp" id="accountName" oninput="save()" />
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Bank Name</label><input class="inp" id="bankName" oninput="save()" /></div>
+            <div class="field"><label>Bank Branch</label><input class="inp" id="bankBranch" oninput="save()" /></div>
+            <div class="field"><label>Account Number (VND)</label><input class="inp" id="accountVND" oninput="save()" /></div>
+            <div class="field"><label>Account Number (USD)</label><input class="inp" id="accountUSD" oninput="save()" /></div>
+            <div class="field"><label>SWIFT Code</label><input class="inp" id="swiftCode" oninput="save()" /></div>
+            <div class="field">
+              <label>Payment Content <span class="hint">Auto-fills from Reference Number</span></label>
+              <input class="inp" id="paymentContent" placeholder="Payment for Debit Note No ..." oninput="state.paymentContentManual=true;save()" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Notes ── -->
+    <div id="tab-notes" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">📝</span><h2>Payment Terms</h2></div>
+        <div class="card-body">
+          <p style="font-size:12px;color:var(--slate4);margin-bottom:14px;">Nội dung bên dưới sẽ tự động xuất hiện trong PDF, tự cập nhật theo Due Date và Reference Number.</p>
+          <div style="background:var(--slate1);border:1px solid var(--slate2);border-radius:8px;padding:16px 18px;">
+            <div id="fixed-bullets-preview" style="font-size:13px;color:var(--slate6);line-height:2;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab: Images ── -->
+    <div id="tab-images" class="tab-panel">
+      <div class="card">
+        <div class="card-head"><span class="card-head-icon">🖼</span><h2>Header &amp; Footer Images</h2></div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--slate6);margin-bottom:16px;">
+            Upload 1 lần, dùng mãi. Ảnh header/footer được lưu vào trình duyệt và tự động áp dụng cho mọi Debit Note, kể cả sau khi tải lại trang.
+          </p>
+          <div class="img-grid">
+            <!-- Header -->
+            <div>
+              <p class="img-label">Header Image</p>
+              <p class="img-hint">Appears at the top of every page</p>
+              <div class="img-upload-area" id="header-drop" onclick="document.getElementById('header-file').click()">
+                <div class="img-placeholder" id="header-placeholder">
+                  <span class="upload-icon">🖼</span>
+                  <p>Click to upload<br><strong>PNG / JPG</strong></p>
+                </div>
+                <div class="img-preview" id="header-preview" style="display:none;">
+                  <img id="header-img" src="" alt="Header preview" />
+                  <div class="img-actions">
+                    <button class="img-action-btn" onclick="event.stopPropagation();document.getElementById('header-file').click()">Replace</button>
+                    <button class="img-action-btn remove" onclick="event.stopPropagation();clearImage('header')">Remove</button>
+                  </div>
+                </div>
+              </div>
+              <input type="file" id="header-file" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="loadImage('header',this)" />
+            </div>
+            <!-- Footer -->
+            <div>
+              <p class="img-label">Footer Image</p>
+              <p class="img-hint">Appears at the bottom of every page</p>
+              <div class="img-upload-area" id="footer-drop" onclick="document.getElementById('footer-file').click()">
+                <div class="img-placeholder" id="footer-placeholder">
+                  <span class="upload-icon">🖼</span>
+                  <p>Click to upload<br><strong>PNG / JPG</strong></p>
+                </div>
+                <div class="img-preview" id="footer-preview" style="display:none;">
+                  <img id="footer-img" src="" alt="Footer preview" />
+                  <div class="img-actions">
+                    <button class="img-action-btn" onclick="event.stopPropagation();document.getElementById('footer-file').click()">Replace</button>
+                    <button class="img-action-btn remove" onclick="event.stopPropagation();clearImage('footer')">Remove</button>
+                  </div>
+                </div>
+              </div>
+              <input type="file" id="footer-file" accept="image/png,image/jpeg,image/jpg" style="display:none" onchange="loadImage('footer',this)" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Action Bar ── -->
+    <div class="action-bar">
+      <button class="btn btn-dark" id="btn-preview" onclick="generatePDF(false)">👁 Preview PDF</button>
+      <button class="btn btn-sky"  id="btn-download" onclick="generatePDF(true)">⬇ Download PDF</button>
+      <button class="btn btn-ghost" onclick="resetForm()">↺ Reset Form</button>
+    </div>
+
+    <!-- ── PDF Preview ── -->
+    <div id="pdf-preview-wrap" style="display:none;">
+      <div id="pdf-preview-head">
+        <h3>📄 PDF Preview</h3>
+        <div class="head-actions">
+          <a id="pdf-download-link" class="btn btn-sky" style="text-decoration:none;font-size:12px;" download="DebitNote.pdf">⬇ Download</a>
+          <button class="btn btn-ghost" onclick="closePdfPreview()" style="font-size:12px;">✕ Close</button>
+        </div>
+      </div>
+      <iframe id="pdf-frame" title="PDF Preview"></iframe>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+/* ══════════════════════════════════════════════════
+   STATE & DEFAULTS
+══════════════════════════════════════════════════ */
+const STORAGE_KEY = 'debit_note_v2';
+
+const DEFAULTS = {
+  referenceNumber: '',
+  dueDate: todayStr(),
+  companyName: 'TECHNOLOGY VIBE COMPANY LIMITED',
+  companyAddress: '231-233 Le Thanh Ton. Ben Thanh Ward, Ho Chi Minh City, Vietnam',
+  companyTaxCode: '0318301390',
+  clientName: '', clientAddress: '', clientTaxCode: '', clientContact: '',
+  vatPercent: '8',
+  currency: 'USD',
+  accountName: 'Technology Vibe Company Limited',
+  bankName: 'Asia Commercial Bank (ACB)',
+  bankBranch: 'Lac Long Quan, HCMC',
+  accountVND: '68 000 666 68',
+  accountUSD: '68 000 666 88',
+  swiftCode: 'ASCBVNVX',
+  paymentContent: '',
+  notes: '* Please settle payment for the above amount before the due date\n* Payment shall be transferred to account:',
+  paymentTerms: 'Full Payment to be made upon receipt of Debit Note\nCharges for all banking transfers are at the payer\'s expense.',
+  items: [
+  {
+    id: 1,
+    type: 'text',
+    description: 'Recruitment consulting service fee as per agreement',
+    subDesc: ''
+  },
+  {
+    id: 2,
+    type: 'normal',
+    description: 'Service Fee',
+    subDesc: '',
+    qty: '01',
+    price: '0.00'
+  }
+],
+};
+
+let state = loadState();
+let images = { header: null, footer: null };
+let itemIdCounter = 50;
+
+/* ══════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════ */
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// Build reference number: DN-YYYYMMDD-XXX
+function updateRefNumber() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  const seq  = String(parseInt(document.getElementById('refSeq')?.value || '1')).padStart(3, '0');
+  const ref  = `DN-${yyyy}${mm}${dd}-${seq}`;
+  const el   = document.getElementById('referenceNumber');
+  if (el) el.value = ref;
+  state.referenceNumber = ref;
+  // Sync payment content
+  if (!state.paymentContentManual) {
+    const pc = 'Payment for Debit Note No ' + ref;
+    state.paymentContent = pc;
+    const pcEl = document.getElementById('paymentContent');
+    if (pcEl) pcEl.value = pc;
+  }
+  save();
+}
+
+function fmtCurrency(n) {
+  return (+n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDate(str) {
+  if (!str) return '';
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function parseN(v) { return parseFloat(v) || 0; }
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = ''; }, 3000);
+}
+
+/* ══════════════════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════════════════ */
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = { ...DEFAULTS, ...JSON.parse(raw) };
+      // Migration: ensure "Charges for all banking transfers" line exists
+      const chargeLine = "Charges for all banking transfers are at the payer's expense.";
+      if (saved.paymentTerms && !saved.paymentTerms.includes('banking transfers')) {
+        saved.paymentTerms = saved.paymentTerms.trimEnd() + '\n' + chargeLine;
+      }
+      return saved;
+    }
+  } catch {}
+  return { ...DEFAULTS };
+}
+
+function save() {
+  collectFromDOM();
+  // Auto-fill payment content from reference number (unless user manually edited it)
+  if (!state.paymentContentManual) {
+    const refVal = state.referenceNumber ? 'Payment for Debit Note No ' + state.referenceNumber : '';
+    state.paymentContent = refVal;
+    const pcEl = document.getElementById('paymentContent');
+    if (pcEl && document.activeElement !== pcEl) pcEl.value = refVal;
+  }
+  renderFixedBulletsPreview();
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+function collectFromDOM() {
+  const fields = ['referenceNumber','dueDate','companyName','companyAddress','companyTaxCode',
+    'clientName','clientAddress','clientTaxCode','clientContact',
+    'vatPercent','accountName','bankName','bankBranch','accountVND','accountUSD',
+    'swiftCode','paymentContent','notes'];
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) state[f] = el.value;
+  });
+  // Items are kept in state.items directly
+}
+
+function renderFixedBulletsPreview() {
+  const el = document.getElementById('fixed-bullets-preview');
+  if (!el) return;
+  const dueDateStr = state.dueDate ? fmtDate(state.dueDate) : '<span style="color:#cbd5e1">Due Date chưa nhập</span>';
+  const ref = state.referenceNumber || '<span style="color:#cbd5e1">Reference chưa nhập</span>';
+  el.innerHTML =
+    `<div>* Please settle payment for the above amount before <strong>${dueDateStr}</strong></div>` +
+    `<div>* Charges for all banking transfers are at the payer's expense.</div>` +
+    `<div>* Payment shall be transferred to account:</div>` +
+    `<div style="margin-left:16px;margin-top:6px;line-height:2;border-left:2px solid var(--slate2);padding-left:12px;">` +
+      `<div><strong>Account name:</strong> ${state.accountName || '—'}</div>` +
+      `<div>Bank name: ${state.bankName || '—'}</div>` +
+      `<div>Bank branch: ${state.bankBranch || '—'}</div>` +
+      `<div>Account Number: (VND) ${state.accountVND || '—'} ; (USD) ${state.accountUSD || '—'}</div>` +
+      `<div>SWIFT CODE: ${state.swiftCode || '—'}</div>` +
+      `<div>Content: Payment for Debit Note No ${ref}</div>` +
+    `</div>`;
+}
+function switchTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  document.querySelector(`[data-tab="${id}"]`).classList.add('active');
+}
+
+/* ══════════════════════════════════════════════════
+   ITEMS
+══════════════════════════════════════════════════ */
+
+// Returns which optional columns are currently checked
+function getCols() {
+  return {
+    qty:    document.getElementById('col-qty')?.checked    ?? true,
+    price:  document.getElementById('col-price')?.checked  ?? true,
+    amount: document.getElementById('col-amount')?.checked ?? true,
+    note:   document.getElementById('col-note')?.checked   ?? false,
+  };
+}
+
+// Set global currency and update UI
+function setCurrency(cur) {
+  state.currency = cur;
+  document.getElementById('cur-btn-usd').style.background = cur === 'USD' ? 'var(--sky)' : 'white';
+  document.getElementById('cur-btn-usd').style.color      = cur === 'USD' ? 'white' : 'var(--slate6)';
+  document.getElementById('cur-btn-vnd').style.background = cur === 'VND' ? 'var(--sky)' : 'white';
+  document.getElementById('cur-btn-vnd').style.color      = cur === 'VND' ? 'white' : 'var(--slate6)';
+  renderItems();
+  save();
+}
+
+
+function renderItems() {
+  const cols = getCols();
+  const cur  = state.currency || 'USD';
+
+  // ── <colgroup> ──
+  const cg = document.getElementById('inv-colgroup');
+  cg.innerHTML =
+    '<col>' +
+    (cols.qty    ? '<col class="col-qty">'   : '') +
+    (cols.price  ? '<col class="col-price">'  : '') +
+    (cols.amount ? '<col class="col-amt">'    : '') +
+    (cols.note   ? '<col class="col-note">'   : '') +
+    '<col class="col-del">';
+
+  // ── <thead> ──
+  const thead = document.getElementById('inv-thead');
+  thead.innerHTML =
+    '<th>Description</th>' +
+    (cols.qty    ? '<th class="c">Qty</th>'                    : '') +
+    (cols.price  ? `<th class="r">Unit Price (${cur})</th>`    : '') +
+    (cols.amount ? `<th class="r">Amount (${cur})</th>`        : '') +
+    (cols.note   ? '<th>Note</th>'                             : '') +
+    '<th></th>';
+
+  // ── <tbody> ──
+  const tbody = document.getElementById('inv-tbody');
+  tbody.innerHTML = '';
+
+  state.items.forEach(item => {
+
+    if (item.type === 'text') {
+
+      const tr = document.createElement('tr')
+
+      tr.innerHTML = `
+        <td colspan="999">
+          <textarea
+            class="inp"
+            placeholder="Text / Description Row"
+            style="
+              width:100%;
+              min-height:70px;
+              font-weight:500;
+              line-height:1.7;
+              resize:vertical;
+            "
+            oninput="updateItem(${item.id}, 'description', this.value)"
+          >${esc(item.description)}</textarea>
+        </td>
+      `
+
+      tbody.appendChild(tr)
+
+      return
+    }
+
+    const lineAmt = parseN(item.qty) * parseN(item.price);
+    const tr = document.createElement('tr');
+
+    tr.innerHTML =
+      `<td>
+        <div class="item-desc-wrap">
+          <input class="inp" placeholder="Main description" value="${esc(item.description)}"
+            oninput="updateItem(${item.id},'description',this.value)" style="width:100%"/>
+          <input class="inp" placeholder="Sub-description (optional)" value="${esc(item.subDesc)}"
+            oninput="updateItem(${item.id},'subDesc',this.value)"
+            style="width:100%;color:var(--slate4);font-size:12px;"/>
+        </div>
+      </td>` +
+
+      (cols.qty ? `<td class="c">
+        <input class="inp" style="text-align:center;width:100%" placeholder="1" value="${esc(item.qty)}"
+          oninput="updateItem(${item.id},'qty',this.value)" />
+      </td>` : '') +
+
+      (cols.price ? `<td class="r">
+        <input class="inp" style="text-align:right;width:100%" placeholder="0.00" value="${esc(item.price)}"
+          oninput="updateItem(${item.id},'price',this.value)"
+          onblur="blurPrice(${item.id},this)" />
+      </td>` : '') +
+
+      (cols.amount ? `<td class="r" id="amt-${item.id}">
+        <span class="amount-display">${fmtCurrency(lineAmt)}</span>
+      </td>` : '') +
+
+      (cols.note ? `<td>
+        <input class="inp" style="width:100%" placeholder="Note…" value="${esc(item.note||'')}"
+          oninput="updateItem(${item.id},'note',this.value)" />
+      </td>` : '') +
+
+      `<td>
+        <button class="remove-btn" onclick="removeItem(${item.id})"
+          ${state.items.length <= 1 ? 'disabled' : ''} title="Remove">✕</button>
+      </td>`;
+
+    tbody.appendChild(tr);
+  });
+
+  renderTotals();
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function updateItem(id, field, value) {
+  const item = state.items.find(i => i.id === id);
+  if (item) {
+    item[field] = value;
+    // Update amount display for this row
+    const lineAmt = parseN(item.qty) * parseN(item.price);
+    const amtCell = document.getElementById('amt-' + id);
+    if (amtCell) amtCell.querySelector('.amount-display').textContent = fmtCurrency(lineAmt);
+    renderTotals();
+    save();
+  }
+}
+
+function blurPrice(id, el) {
+  const n = parseN(el.value);
+  el.value = n.toFixed(2);
+  updateItem(id, 'price', el.value);
+}
+
+function addItem(type = 'normal') {
+
+  if (type === 'text') {
+
+    // remove old text row if exists
+    state.items = state.items.filter(i => i.type !== 'text')
+
+    // always insert at top
+    state.items.unshift({
+      id: ++itemIdCounter,
+      type: 'text',
+      description: '',
+      subDesc: ''
+    })
+
+  } else {
+
+    state.items.push({
+      id: ++itemIdCounter,
+      type: 'normal',
+      description: '',
+      subDesc: '',
+      qty: '1',
+      price: '0.00'
+    })
+
+  }
+
+  renderItems()
+  save()
+}
+
+function removeItem(id) {
+  if (state.items.length <= 1) return;
+  state.items = state.items.filter(i => i.id !== id);
+  renderItems();
+  save();
+}
+
+function renderTotals() {
+  const cols    = getCols();
+  const vatEl   = document.getElementById('vatPercent');
+  const vat     = parseN(vatEl?.value || state.vatPercent);
+  const subtotal = state.items.reduce((s, i) => {
+
+  if (i.type === 'text') return s
+
+  return s + parseN(i.qty) * parseN(i.price)
+
+}, 0)
+  const vatAmt   = subtotal * (vat / 100);
+  const total    = subtotal + vatAmt;
+
+  const tfoot = document.getElementById('inv-tfoot');
+  if (!tfoot) return;
+
+  // Total number of columns: desc + qty? + price? + amount? + note? + del
+  const totalCols = 1 + (cols.qty?1:0) + (cols.price?1:0) + (cols.amount?1:0)
+                  + (cols.note?1:0) + 1;
+
+  if (!cols.amount) {
+    // No Amount column — just show totals spanning full width
+    tfoot.innerHTML = `
+      <tr><td colspan="${totalCols}" style="text-align:right;padding:8px 10px;border-top:2px solid var(--slate2);font-size:13px;color:var(--slate6);">
+        Subtotal: <strong style="color:var(--slate8)">${fmtCurrency(subtotal)}</strong>
+        &nbsp;&nbsp; VAT ${vat}%: <strong style="color:var(--slate8)">${fmtCurrency(vatAmt)}</strong>
+        &nbsp;&nbsp; Total: <strong style="font-size:15px;color:var(--sky)">${fmtCurrency(total)}</strong>
+      </td></tr>`;
+    return;
+  }
+
+  // Columns before Amount: desc + qty? + price?
+  const spanLabel = 1 + (cols.qty?1:0) + (cols.price?1:0);
+  // Columns after Amount: note? + del
+  const spanAfter = (cols.note?1:0) + 1;
+
+  function row(labelHtml, valHtml, cls='') {
+    return `<tr class="${cls}">` +
+      `<td colspan="${spanLabel}" class="tfoot-lbl">${labelHtml}</td>` +
+      `<td class="tfoot-val">${valHtml}</td>` +
+      (spanAfter > 0 ? `<td colspan="${spanAfter}" style="border-top:inherit"></td>` : '') +
+      `</tr>`;
+  }
+
+  const vatInput = `<div class="vat-cell-inner">VAT
+    <input type="number" id="vatPercent" value="${vat}" min="0" max="100" step="0.5"
+      oninput="state.vatPercent=this.value;renderTotals();save();" />
+    %</div>`;
+
+  tfoot.innerHTML =
+    row('Subtotal',  fmtCurrency(subtotal)) +
+    row(vatInput,    fmtCurrency(vatAmt)) +
+    row('<strong>Total</strong>',
+        `<span style="font-size:17px;font-weight:700;color:var(--sky);font-variant-numeric:tabular-nums">${fmtCurrency(total)}</span>`,
+        'tr-total');
+}
+
+/* ══════════════════════════════════════════════════
+   IMAGE UPLOADS
+══════════════════════════════════════════════════ */
+function loadImage(type, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    images[type] = e.target.result;
+    // Persist image to localStorage so it survives page reload
+    try { localStorage.setItem('debit_img_' + type, e.target.result); } catch {}
+    document.getElementById(type + '-img').src = e.target.result;
+    document.getElementById(type + '-placeholder').style.display = 'none';
+    document.getElementById(type + '-preview').style.display = 'block';
+    toast(type.charAt(0).toUpperCase() + type.slice(1) + ' image saved & will appear on all PDFs!');
+  };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+
+function clearImage(type) {
+  images[type] = null;
+  try { localStorage.removeItem('debit_img_' + type); } catch {}
+  document.getElementById(type + '-img').src = '';
+  document.getElementById(type + '-placeholder').style.display = '';
+  document.getElementById(type + '-preview').style.display = 'none';
+}
+
+function loadSavedImages() {
+  ['header', 'footer'].forEach(type => {
+    try {
+      const saved = localStorage.getItem('debit_img_' + type);
+      if (saved) {
+        images[type] = saved;
+        document.getElementById(type + '-img').src = saved;
+        document.getElementById(type + '-placeholder').style.display = 'none';
+        document.getElementById(type + '-preview').style.display = 'block';
+      }
+    } catch {}
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════════ */
+function resetForm() {
+  if (!confirm('Reset all form data? This cannot be undone.')) return;
+  state = { ...DEFAULTS, dueDate: todayStr(), paymentContentManual: false, items: [
+  {
+    id: 1,
+    type: 'text',
+    description: 'Recruitment consulting service fee as per agreement',
+    subDesc: ''
+  },
+  {
+    id: 2,
+    type: 'normal',
+    description: 'Service Fee',
+    subDesc: '',
+    qty: '01',
+    price: '0.00'
+  }
+] };
+  images = { header: null, footer: null };
+  localStorage.removeItem(STORAGE_KEY);
+  populateDOM();
+  // Reset sequence to 1 and regenerate ref
+  const seqEl = document.getElementById('refSeq');
+  if (seqEl) seqEl.value = 1;
+  updateRefNumber();
+  clearImage('header');
+  clearImage('footer');
+  closePdfPreview();
+  toast('Form reset successfully.');
+}
+
+/* ══════════════════════════════════════════════════
+   POPULATE DOM FROM STATE
+══════════════════════════════════════════════════ */
+function populateDOM() {
+  const fields = ['referenceNumber','dueDate','companyName','companyAddress','companyTaxCode',
+    'clientName','clientAddress','clientTaxCode','clientContact',
+    'vatPercent','accountName','bankName','bankBranch','accountVND','accountUSD',
+    'swiftCode','paymentContent','notes'];
+  fields.forEach(f => {
+    const el = document.getElementById(f);
+    if (el) el.value = state[f] || '';
+  });
+  // Auto-generate reference number on first load (no saved state)
+  // If there's a saved referenceNumber, try to parse the sequence from it
+  if (state.referenceNumber) {
+    const match = state.referenceNumber.match(/-(\d+)$/);
+    if (match) {
+      const seqEl = document.getElementById('refSeq');
+      if (seqEl) seqEl.value = parseInt(match[1]);
+    }
+  } else {
+    updateRefNumber();
+  }
+  // Sync payment content
+  if (!state.paymentContent && state.referenceNumber) {
+    const pc = 'Payment for Debit Note No ' + state.referenceNumber;
+    state.paymentContent = pc;
+    const el = document.getElementById('paymentContent');
+    if (el) el.value = pc;
+  }
+  renderItems();
+  renderFixedBulletsPreview();
+  // Init currency toggle UI
+  setCurrency(state.currency || 'USD');
+}
+
+/* ══════════════════════════════════════════════════
+   PDF PREVIEW
+══════════════════════════════════════════════════ */
+function closePdfPreview() {
+  document.getElementById('pdf-preview-wrap').style.display = 'none';
+  const frame = document.getElementById('pdf-frame');
+  if (frame.src) { URL.revokeObjectURL(frame.src); frame.src = ''; }
+}
+
+function setBusy(busy) {
+  const btns = ['btn-preview','btn-download','btn-preview-top','btn-download-top'];
+  btns.forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.disabled = busy;
+    if (busy) {
+      if (!b._origHTML) b._origHTML = b.innerHTML;
+      if (id.includes('preview')) b.innerHTML = '<span class="spin"></span> Generating…';
+      if (id.includes('download')) b.innerHTML = '<span class="spin"></span> Generating…';
+    } else {
+      if (b._origHTML) { b.innerHTML = b._origHTML; b._origHTML = null; }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════
+   PDF GENERATION
+══════════════════════════════════════════════════ */
+async function generatePDF(download) {
+  collectFromDOM();
+  setBusy(true);
+  try {
+    const blob = await buildPDF();
+    const url  = URL.createObjectURL(blob);
+    if (download) {
+      const a = document.createElement('a');
+      a.href = url; a.download = 'DebitNote_' + (state.referenceNumber || 'draft') + '.pdf';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('PDF downloaded! ✓');
+    } else {
+      closePdfPreview();
+      document.getElementById('pdf-frame').src = url;
+      document.getElementById('pdf-download-link').href = url;
+      document.getElementById('pdf-download-link').download = 'DebitNote_' + (state.referenceNumber || 'draft') + '.pdf';
+      document.getElementById('pdf-preview-wrap').style.display = 'block';
+      document.getElementById('pdf-preview-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      toast('Preview ready — scroll down ↓');
+    }
+  } catch(err) {
+    console.error(err);
+    toast('Error generating PDF. Please try again.', 'error');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/* ── Core PDF builder ───────────────────────────── */
+async function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  const PW = 210, PH = 297;
+  const MX = 20, CW = PW - MX * 2;
+
+  const C_DARK    = [30, 41, 59];
+  const C_MID     = [71, 85, 105];
+  const C_LIGHT   = [148, 163, 184];
+  const C_SKY     = [14, 165, 233];
+  const C_SKY_D   = [3, 105, 161];
+
+  // ── Calculations ──
+  const vatPct  = parseN(state.vatPercent);
+  const subtotal = state.items.reduce((s, i) => {
+
+  if (i.type === 'text') return s
+
+  return s + parseN(i.qty) * parseN(i.price)
+
+}, 0)
+  const vatAmt   = subtotal * (vatPct / 100);
+  const total    = subtotal + vatAmt;
+
+  // ── Load image helper ──
+  const loadImg = (src) => new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      res({ data: c.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+    };
+    img.onerror = rej;
+    img.src = src;
+  });
+
+  // ── Header ──
+  let HEADER_H = 0;
+  if (images.header) {
+    try {
+      const { data, w, h } = await loadImg(images.header);
+      HEADER_H = Math.min(PW * (h / w), 50);
+      doc.addImage(data, 'PNG', 0, 0, PW, HEADER_H);
+    } catch(e) { console.warn('Header image failed', e); }
+  }
+
+  // ── Footer ──
+  let FOOTER_H = 0;
+  const drawFooter = async () => {
+    if (images.footer) {
+      try {
+        const { data, w, h } = await loadImg(images.footer);
+        FOOTER_H = Math.min(PW * (h / w), 22);
+        doc.addImage(data, 'PNG', 0, PH - FOOTER_H, PW, FOOTER_H);
+        return;
+      } catch(e) { console.warn('Footer image failed', e); }
+    }
+    // Default footer bar
+    FOOTER_H = 11;
+    doc.setFillColor(...C_SKY);
+    doc.rect(0, PH - FOOTER_H, PW, FOOTER_H, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8.5);
+    doc.setFont('helvetica', 'normal');
+    doc.text('© www.teamtechvibe.com', PW / 2, PH - FOOTER_H + 7, { align: 'center' });
+  };
+  await drawFooter();
+
+  let y = HEADER_H + 9;
+  const BODY_BOTTOM = PH - FOOTER_H - 7;
+
+  const newPage = async () => {
+    doc.addPage();
+    y = 10;
+    if (images.header) {
+      try {
+        const { data, w, h } = await loadImg(images.header);
+        const hh = Math.min(PW*(h/w), 50);
+        doc.addImage(data, 'PNG', 0, 0, PW, hh);
+        y = hh + 9;
+      } catch {}
+    }
+    await drawFooter();
+  };
+
+  const chk = async (need = 12) => {
+    if (y + need > BODY_BOTTOM) await newPage();
+  };
+
+  // ─── TITLE ────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(...C_DARK);
+  doc.text('DEBIT NOTE', PW / 2, y + 6, { align: 'center' });
+  y += 18;
+
+  // ─── Reference & Due Date ─────────────────────────────────────────────────
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C_DARK);
+  doc.text('Reference:', MX, y);
+  doc.setFont('helvetica', 'normal'); doc.text('  ' + (state.referenceNumber || ''), MX + 20, y);
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Due Date:', MX, y);
+  doc.setFont('helvetica', 'normal'); doc.text('  ' + fmtDate(state.dueDate), MX + 19, y);
+  y += 11;
+
+  // ─── FROM Company ─────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C_DARK);
+  doc.text(state.companyName || '', MX, y); y += 5.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...C_MID);
+  const addrLines = doc.splitTextToSize(state.companyAddress || '', CW);
+  addrLines.forEach(l => { doc.text(l, MX, y); y += 5; });
+  doc.text('Tax Code: ' + (state.companyTaxCode || ''), MX, y); y += 11;
+
+  // ─── TO Client ────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C_DARK);
+  doc.text(state.clientName || '(Client Name)', MX, y); y += 5.5;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...C_MID);
+  doc.text('Address: ' + (state.clientAddress || ''), MX, y); y += 5;
+  doc.text('Tax Code: ' + (state.clientTaxCode || ''), MX, y); y += 5;
+  doc.text('Contact Person: ' + (state.clientContact || ''), MX, y); y += 11;
+
+  await chk(40);
+
+  // ─── Items Table ──────────────────────────────────────────────────────────
+  const cols = getCols();
+  const cur  = state.currency || 'USD';
+
+  // Mirror the exact px widths from CSS, converted to mm
+  // CSS: qty=70, price=118, amt=128, note=120 (no currency col anymore)
+  const PX = { qty: 70, price: 118, amt: 128, note: 120 };
+  let fixedMM = 0;
+  if (cols.qty)    fixedMM += PX.qty   * 0.264583;
+  if (cols.price)  fixedMM += PX.price * 0.264583;
+  if (cols.amount) fixedMM += PX.amt   * 0.264583;
+  if (cols.note)   fixedMM += PX.note  * 0.264583;
+  const descW = CW - fixedMM;
+
+  // Build column styles
+  const colStyles = { 0: { cellWidth: descW, halign: 'left' } };
+  let ci = 1;
+  if (cols.qty)    { colStyles[ci++] = { cellWidth: PX.qty   * 0.264583, halign: 'center' }; }
+  if (cols.price)  { colStyles[ci++] = { cellWidth: PX.price * 0.264583, halign: 'right'  }; }
+  if (cols.amount) { colStyles[ci++] = { cellWidth: PX.amt   * 0.264583, halign: 'right'  }; }
+  if (cols.note)   { colStyles[ci++] = { cellWidth: PX.note  * 0.264583, halign: 'left'   }; }
+
+  // Right edge of Amount column for totals alignment
+  let amtRightX = MX + descW;
+  if (cols.qty)    amtRightX += PX.qty   * 0.264583;
+  if (cols.price)  amtRightX += PX.price * 0.264583;
+  if (cols.amount) amtRightX += PX.amt   * 0.264583;
+  const totRightX = cols.amount ? amtRightX : (PW - MX);
+
+  // Header labels include currency
+  const pdfHead = ['Description'];
+  if (cols.qty)    pdfHead.push('Quantity');
+  if (cols.price)  pdfHead.push(`Unit Price (${cur})`);
+  if (cols.amount) pdfHead.push(`Amount (${cur})`);
+  if (cols.note)   pdfHead.push('Note');
+
+  const tableBody = []
+
+state.items.forEach(item => {
+
+  if (item.type === 'text') {
+
+    tableBody.push([
+      {
+        content: item.description || '',
+        colSpan: pdfHead.length,
+        styles: {
+          fontStyle: 'normal',
+          fillColor: [255,255,255],
+          textColor: [71,85,105]
+        }
+      }
+    ])
+
+    return
+  }
+
+  const lineTotal = parseN(item.qty) * parseN(item.price)
+
+  const desc = item.description + (item.subDesc ? '\n' + item.subDesc : '')
+
+  const row = [desc]
+
+  if (cols.qty) row.push(item.qty || '')
+
+  if (cols.price) row.push(fmtCurrency(parseN(item.price)))
+
+  if (cols.amount) row.push(fmtCurrency(lineTotal))
+
+  if (cols.note) row.push(item.note || '')
+
+  tableBody.push(row)
+
+})
+
+doc.autoTable({
+    startY: y,
+    head: [pdfHead],
+    body: tableBody,
+    margin: { left: MX, right: MX },
+    tableWidth: CW,
+    styles: {
+      fontSize: 9.5,
+      textColor: C_DARK,
+      cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+      lineColor: [226, 232, 240],
+      lineWidth: 0.25,
+    },
+    headStyles: {
+      fillColor: [30, 41, 59],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9.5,
+      halign: 'center',
+      cellPadding: { top: 5, bottom: 5, left: 5, right: 5 },
+      lineColor: [226, 232, 240],
+      lineWidth: 0.25,
+    },
+    columnStyles: colStyles,
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    theme: 'grid',
+    tableLineColor: [226, 232, 240],
+    tableLineWidth: 0.25,
+  });
+
+  y = doc.lastAutoTable.finalY;
+  await chk(30);
+
+  // ─── Totals — rendered as continuation rows via autoTable ─────────────────
+  // Use a separate autoTable with no head, matching exact column widths,
+  // so Subtotal/VAT/Total sit flush under the main table with no overlap.
+
+  const totalsBody = [];
+
+  // Helper: build a full-width row with label in Amount col, empty elsewhere
+  const numCols = 1 + (cols.qty?1:0) + (cols.price?1:0) + (cols.amount?1:0)
+                + (cols.note?1:0);
+
+  function totRow(label, value) {
+    const r = Array(numCols).fill('');
+    // Label goes in the col just before Amount (Unit Price col), value in Amount col
+    const amtIdx = 1 + (cols.qty?1:0) + (cols.price?1:0); // 0-based index of Amount col
+    if (cols.amount) {
+      r[amtIdx - 1] = label;   // label in Unit Price cell (right-aligned)
+      r[amtIdx]     = value;   // value in Amount cell
+    } else {
+      // No amount col — put in last col
+      r[numCols - 1] = label + '  ' + value;
+    }
+    return r;
+  }
+
+  totalsBody.push(totRow('Subtotal', fmtCurrency(subtotal)));
+  totalsBody.push(totRow('VAT ' + vatPct + '%', fmtCurrency(vatAmt)));
+  totalsBody.push(totRow('Total', fmtCurrency(total)));
+
+  // Index of Amount col (0-based) and Unit Price col
+  const amtColIdx   = 1 + (cols.qty?1:0) + (cols.price?1:0);
+  const priceColIdx = amtColIdx - 1;
+
+  // Build per-column styles — copy widths from main table, fix alignment
+  const totColStyles = {};
+  for (let i = 0; i < numCols; i++) {
+    totColStyles[i] = { ...(colStyles[i] || {}), fillColor: [255, 255, 255] };
+  }
+  if (cols.price) {
+    totColStyles[priceColIdx] = { ...totColStyles[priceColIdx], halign: 'right' };
+  }
+  if (cols.amount) {
+    totColStyles[amtColIdx] = { ...totColStyles[amtColIdx], halign: 'right' };
+  }
+
+  const C_BORDER = [226, 232, 240]; // slate-200, same as table
+
+  doc.autoTable({
+    startY: y,
+    body: totalsBody,
+    margin: { left: MX, right: MX },
+    tableWidth: CW,
+    styles: {
+      fontSize: 9.5,           // same size for ALL rows — no wrapping
+      fontStyle: 'normal',
+      cellPadding: { top: 4, bottom: 4, left: 5, right: 5 },
+      lineColor: C_BORDER,
+      lineWidth: 0.25,
+      textColor: C_DARK,
+      fillColor: [255, 255, 255],
+      overflow: 'hidden',      // never wrap
+    },
+    columnStyles: totColStyles,
+    theme: 'grid',             // grid draws all cell borders uniformly
+    tableLineColor: C_BORDER,
+    tableLineWidth: 0.25,
+    didParseCell(data) {
+      const r = data.row.index;
+      const c = data.column.index;
+      // Uniform white background for all rows
+      data.cell.styles.fillColor = [255, 255, 255];
+      // Label column (priceColIdx): gray text
+      if (c === priceColIdx) {
+        data.cell.styles.textColor = r === 2 ? C_DARK : C_MID;
+        data.cell.styles.fontStyle = r === 2 ? 'bold' : 'normal';
+      }
+      // Value column (amtColIdx): sky blue + bold only on Total row
+      if (c === amtColIdx) {
+        if (r === 2) {
+          data.cell.styles.textColor = C_SKY;
+          data.cell.styles.fontStyle = 'bold';
+          // Keep same font size — no increase to avoid wrapping
+          data.cell.styles.fontSize  = 9.5;
+        } else {
+          data.cell.styles.textColor = C_DARK;
+          data.cell.styles.fontStyle = 'normal';
+        }
+      }
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 5;
+
+  await chk(15);
+
+  // ─── PAYMENT TERMS ────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...C_DARK);
+  doc.text('Payment Terms:', MX, y);
+  const ptw = doc.getTextWidth('Payment Terms:');
+  doc.setDrawColor(...C_DARK); doc.setLineWidth(0.4);
+  doc.line(MX, y + 1, MX + ptw, y + 1);
+  y += 5.5;
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...C_MID);
+
+  // Line 1: Please settle payment … before <Due Date>
+  const dueDateStr = fmtDate(state.dueDate) || '___________';
+  const settle1 = doc.splitTextToSize('* Please settle payment for the above amount before ', CW - 4);
+  // Render as one line with bold date inline
+  const settlePrefix = '* Please settle payment for the above amount before ';
+  const settleFullLine = settlePrefix + dueDateStr;
+  const settleLines = doc.splitTextToSize(settleFullLine, CW - 4);
+  // Bold the date part on the last line
+  for (let i = 0; i < settleLines.length; i++) {
+    if (i < settleLines.length - 1) {
+      doc.setFont('helvetica', 'normal'); doc.text(settleLines[i], MX + 2, y); y += 5;
+    } else {
+      // Split the last line at the date
+      const lastLine = settleLines[i];
+      const dateIdx = lastLine.lastIndexOf(dueDateStr);
+      if (dateIdx >= 0) {
+        const before = lastLine.substring(0, dateIdx);
+        doc.setFont('helvetica', 'normal'); doc.text(before, MX + 2, y);
+        const beforeW = doc.getTextWidth(before);
+        doc.setFont('helvetica', 'bold'); doc.text(dueDateStr, MX + 2 + beforeW, y);
+        doc.setFont('helvetica', 'normal');
+      } else {
+        doc.text(lastLine, MX + 2, y);
+      }
+      y += 5;
+    }
+  }
+
+  // Line 2: Charges for all banking transfers
+  doc.text('* Charges for all banking transfers are at the payer\'s expense.', MX + 2, y); y += 5;
+
+  // Line 3: Payment shall be transferred to account:
+  doc.text('* Payment shall be transferred to account:', MX + 2, y); y += 5;
+
+  // Bank block (indented)
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(...C_DARK);
+  doc.text('Account name: ' + (state.accountName || ''), MX + 6, y); y += 5;
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...C_MID);
+  doc.text('Bank name: ' + (state.bankName || ''), MX + 6, y); y += 5;
+  doc.text('Bank branch: ' + (state.bankBranch || ''), MX + 6, y); y += 5;
+  doc.text('Account Number: (VND) ' + (state.accountVND || '') + ' ; (USD) ' + (state.accountUSD || ''), MX + 6, y); y += 5;
+  doc.text('SWIFT CODE: ' + (state.swiftCode || ''), MX + 6, y); y += 5;
+
+  // Content line with reference number
+  const contentRef = state.referenceNumber ? state.referenceNumber : '___________';
+  doc.text('Content: Payment for Debit Note No ' + contentRef, MX + 6, y); y += 5;
+
+  return doc.output('blob');
+}
+
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  populateDOM();
+  loadSavedImages();
+});
+</script>
+</body>
+</html>
