@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Debit Note Generator</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+    }
+
+    button {
+      padding: 12px 20px;
+      background: blue;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+<div class="box" id="pdf">
+
+  <h1>DEBIT NOTE</h1>
+
+  <input id="client" placeholder="Client Name">
+
+  <select id="currency">
+    <option>VND</option>
+    <option>USD</option>
+  </select>
+
+  <input id="qty" type="number" placeholder="Quantity" value="1">
+
+  <input id="price" type="number" placeholder="Unit Price" value="0">
+
+  <input id="vat" type="number" placeholder="VAT %" value="8">
+
+  <table>
+    <tr>
+      <th>Subtotal</th>
+      <td id="subtotal"></td>
+    </tr>
+
+```
+<tr>
+  <th>VAT</th>
+  <td id="vatAmount"></td>
+</tr>
+
+<tr>
+  <th>Total</th>
+  <td id="total"></td>
+</tr>
+```
+
+  </table>
+
+</div>
+
+<button onclick="downloadPDF()">
+Export PDF
+</button>
+
+<script>
+
+function update() {
+
+  const currency = document.getElementById('currency').value
+  const qty = Number(document.getElementById('qty').value)
+  const price = Number(document.getElementById('price').value)
+  const vat = Number(document.getElementById('vat').value)
+
+  const subtotal = qty * price
+  const vatAmount = subtotal * vat / 100
+  const total = subtotal + vatAmount
+
+  const format = (num) => {
+
+    if(currency === 'USD') {
+      return '$' + num.toLocaleString()
+    }
+
+    return num.toLocaleString() + ' VND'
+  }
+
+  document.getElementById('subtotal').innerText = format(subtotal)
+  document.getElementById('vatAmount').innerText = format(vatAmount)
+  document.getElementById('total').innerText = format(total)
+
+}
+
+document.addEventListener('input', update)
+
+update()
+
+function downloadPDF() {
+
+  const element = document.getElementById('pdf')
+
+  html2pdf().from(element).save('Debit-Note.pdf')
+}
+
+</script>
+
+</body>
+</html>
